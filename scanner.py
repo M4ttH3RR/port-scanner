@@ -1,25 +1,67 @@
 import socket
+import threading
+import tkinter as tk
+from tkinter import scrolledtext
 
-def scan_target(target):
-    print(f"\nScanning target: {target}")
-    print("Open ports:\n")
+
+def start_scan():
+    
+    threading.Thread(target=scan_ports, daemon=True).start()
+
+
+def scan_ports():
+    target = entry.get()
+
+    output.delete('1.0', tk.END)
+
+    if not target:
+        output.insert(tk.END, "Please enter an IP address.\n")
+        return
+
+    output.insert(tk.END, f"Scanning {target}...\n\n")
 
     for port in range(1, 1025):
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        socket.setdefaulttimeout(0.5)
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            socket.setdefaulttimeout(0.5)
 
-        result = s.connect_ex((target, port))
+            result = s.connect_ex((target, port))
 
-        if result == 0:
-            try:
-                service = socket.getservbyport(port)
-            except:
-                service = "Unknown"
+            if result == 0:
+                try:
+                    service = socket.getservbyport(port)
+                except:
+                    service = "Unknown"
 
-            print(f"Port {port} is open ({service})")
+                
+                root.after(0, lambda p=port, svc=service:
+                output.insert(tk.END, f"Port {p} open ({svc})\n"))
 
-        s.close()
+            s.close()
 
-if __name__ == "__main__":
-    target = input("Enter IP address to scan: ")
-    scan_target(target)
+            
+            if port % 100 == 0:
+                root.after(0, lambda p=port:
+                output.insert(tk.END, f"Scanned up to port {p}...\n"))
+
+        except:
+            pass
+
+    root.after(0, lambda: output.insert(tk.END, "\nScan complete.\n"))
+
+
+
+root = tk.Tk()
+root.title("Port Scanner")
+
+tk.Label(root, text="Enter IP Address:").pack()
+
+entry = tk.Entry(root, width=30)
+entry.pack()
+
+tk.Button(root, text="Scan", command=start_scan).pack()
+
+output = scrolledtext.ScrolledText(root, width=60, height=20)
+output.pack()
+
+root.mainloop()
